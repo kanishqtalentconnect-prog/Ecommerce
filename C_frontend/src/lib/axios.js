@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000", 
+    baseURL: import.meta.env.VITE_API_URL || "https://ecommerce-3pxk.onrender.com/", 
     withCredentials: true, 
 });
 
