@@ -1,6 +1,7 @@
 // AuthContext.jsx
 import { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+//import axios from 'axios';
+import axiosInstance from "../lib/axios.js";
 
 const AuthContext = createContext();
 
@@ -12,13 +13,14 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const response = await axios.get(
+        const response = await axiosInstance.get(
           `${import.meta.env.VITE_API_URL}/api/auth/profile`,
           { withCredentials: true }
         );
         setUser(response.data);
       } catch (error) {
         console.log("Not authenticated");
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -29,7 +31,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${import.meta.env.VITE_API_URL}/api/auth/login`, 
         credentials, 
         { withCredentials: true }
@@ -45,7 +47,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await axios.post(
+      await axiosInstance.post(
         `${import.meta.env.VITE_API_URL}/api/auth/logout`,
         {},
         { withCredentials: true }

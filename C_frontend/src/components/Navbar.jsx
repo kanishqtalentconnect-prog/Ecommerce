@@ -26,7 +26,7 @@ const Navbar = () => {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const { user, logout } = useAuth();
+  const { user, logout} = useAuth();
 
  
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
