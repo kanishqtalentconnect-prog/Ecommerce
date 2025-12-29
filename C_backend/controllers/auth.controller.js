@@ -28,8 +28,10 @@ const setCookies = (res, accessToken, refreshToken) => {
   // Set access token cookie
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: true, // Set to false for http localhost
-    sameSite: "None", // Better for local development
+    // secure: true, // Set to false for http localhost
+    // sameSite: "None", // Better for local development
+    secure: isProduction, //changed for hosting
+    sameSite: isProduction ? "None" : "Lax", // Better for hosting
     path: "/",
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
@@ -37,8 +39,10 @@ const setCookies = (res, accessToken, refreshToken) => {
   // Set refresh token cookie
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: true, // Set to false for http localhost
-    sameSite: "None", // Better for local development
+    // secure: true, // Set to false for http localhost
+    // sameSite: "None", // Better for local development
+    secure: isProduction, //changed for hosting
+    sameSite: isProduction ? "None" : "Lax", // Better for hosting
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
@@ -46,8 +50,10 @@ const setCookies = (res, accessToken, refreshToken) => {
   // Set a non-httpOnly debug cookie
   res.cookie("isLoggedIn", "true", {
     httpOnly: false,
-    secure: true,
-    sameSite: "None",
+    // secure: true, // Set to false for http localhost
+    // sameSite: "None", // Better for local development
+    secure: isProduction, //changed for hosting
+    sameSite: isProduction ? "None" : "Lax", // Better for hosting
     path: "/",
     maxAge: 15 * 60 * 1000,
   });
