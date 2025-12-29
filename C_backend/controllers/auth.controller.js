@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import { redis } from "../lib/redis.js";
 import passport from "../lib/passport.js";
+const isProduction = process.env.NODE_ENV === "production";
 
 const generateTokens = (userId) => {
   const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
