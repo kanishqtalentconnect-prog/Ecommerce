@@ -16,6 +16,7 @@ const generateTokens = (userId) => {
 };
 
 const storeRefreshToken = async (userId, refreshToken) => {
+  if (!redis) return;
   await redis.set(
     `refresh_token:${userId}`,
     refreshToken,
