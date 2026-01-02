@@ -105,3 +105,5 @@ app.listen(PORT, () => {
     
     connectDB();
 });
+
+app.use("/api/address", addressRoutes);//Location fetch

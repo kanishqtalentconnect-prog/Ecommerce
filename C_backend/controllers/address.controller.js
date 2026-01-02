@@ -1,4 +1,5 @@
 import Address from "../models/address.model.js";
+import axios from "axios";
 
 export const putAddress = async (req, res) => {
   try {
@@ -83,5 +84,39 @@ export const defaultAddress = async (req, res) => {
     res
       .status(500)
       .json({ message: "Failed to set default address", error: error.message });
+  }
+};
+
+export const saveLocation = async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+
+    const geoRes = await axios.get(
+      "https://maps.googleapis.com/maps/api/geocode/json",
+      {
+        params: {
+          latlng: `${latitude},${longitude}`,
+          key: process.env.GOOGLE_MAPS_API_KEY,
+        },
+      }
+    );
+
+    const address = geoRes.data.results[0]?.formatted_address;
+
+    await Address.findOneAndUpdate(
+      { user: req.user._id },
+      {
+        user: req.user._id,
+        latitude,
+        longitude,
+        fullAddress: address,
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true, address });
+  } catch (error) {
+    console.error("Location save error:", error);
+    res.status(500).json({ message: "Failed to save location" });
   }
 };

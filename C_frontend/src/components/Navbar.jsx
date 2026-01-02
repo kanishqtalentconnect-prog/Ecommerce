@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import axiosInstance from "../lib/axios.js";
 import { useCurrency } from '../context/CurrencyContext';
 import Flag from 'react-world-flags';
+import { getBrowserLocation } from "../utils/getBrowserLocation.js";
 
 
 const Navbar = () => {
@@ -30,7 +31,9 @@ const Navbar = () => {
 
  
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
-const { currency, setCurrency, loading } = useCurrency();
+  const { currency, setCurrency, loading } = useCurrency();
+  const [address, setAddress] = useState(null);
+
 
   
   // Fetch categories from database
@@ -99,10 +102,32 @@ const { currency, setCurrency, loading } = useCurrency();
     }
   };
 
+  useEffect(() => {
+  const saveLocation = async () => {
+    try {
+      const { lat, lng } = await getBrowserLocation();
+
+      const res = await axiosInstance.post(
+        "/api/address/autofill",
+        { lat, lng },
+        { withCredentials: true }
+      );
+
+      setAddress(res.data);
+    } catch (err) {
+      console.log("Location denied or failed");
+    }
+  };
+
+  saveLocation();
+  }, []);
+
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
+
 
   // Handle header message click navigation
   const handleHeaderMessageClick = async (message) => {
@@ -221,8 +246,12 @@ const { currency, setCurrency, loading } = useCurrency();
                 <div className="ml-8 flex items-center text-sm text-gray-600">
                   <MapPin className="h-4 w-4 mr-1" />
                   <div>
-                    <span className="text-xs text-gray-500">Address</span>
-                    <button className="block text-sm font-medium hover:text-amber-600">
+                    <span className="text-xs text-gray-500">{address
+        ? `${address.city}, ${address.state}`
+        : "Detecting location..."}</span>
+                    <button 
+                    onClick={() => navigate("/profile")}
+                    className="block text-sm font-medium hover:text-amber-600">
                       Update Address
                     </button>
                   </div>
