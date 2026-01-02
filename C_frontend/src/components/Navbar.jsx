@@ -27,9 +27,9 @@ const Navbar = () => {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const { user, loadings, logout } = useAuth(); 
+  const { user, loading, logout } = useAuth(); 
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
-  const { currency, setCurrency, loading } = useCurrency();
+  const { currency, setCurrency } = useCurrency();
   const [address, setAddress] = useState(null);
   
 
@@ -113,10 +113,10 @@ const Navbar = () => {
     }
   };
 
-  if (!loadings && user) {
+  if (!loading && user) {
     fetchAddress();
   }
-}, [loadings, user]);
+}, [loading, user]);
 
 
 
@@ -126,7 +126,7 @@ const Navbar = () => {
       const { lat, lng } = await getBrowserLocation();
 
       const res = await axiosInstance.post(
-        "/api/addresses/autofill",
+        "/api/address/autofill",
         { lat, lng },
         { withCredentials: true }
       );
@@ -137,10 +137,10 @@ const Navbar = () => {
     }
   };
 
-  if (!loadings && user && !address) {
+  if (!loading && user && !address) {
     saveLocation();
   }
-}, [loadings, user, address]);
+}, [loading, user, address]);
 
 
   const handleLogout = async () => {
