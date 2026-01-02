@@ -120,27 +120,28 @@ const Navbar = () => {
 
 
 
-  useEffect(() => {
-  const saveLocation = async () => {
-    try {
-      const { lat, lng } = await getBrowserLocation();
+//   useEffect(() => {
+//   const saveLocation = async () => {
+//     console.log("📍 saveLocation CALLED");
+//     try {
+//       const { lat, lng } = await getBrowserLocation();
 
-      const res = await axiosInstance.post(
-        "/api/address/autofill",
-        { lat, lng },
-        { withCredentials: true }
-      );
+//       const res = await axiosInstance.post(
+//         "/api/address/autofill",
+//         { lat, lng },
+//         { withCredentials: true }
+//       );
 
-      setAddress(res.data);
-    } catch (err) {
-      console.log("Location denied or failed");
-    }
-  };
+//       setAddress(res.data);
+//     } catch (err) {
+//       console.log("Location denied or failed");
+//     }
+//   };
 
-  if (!loading && user && address === null) {
-    saveLocation();
-  }
-}, [loading, user, address]);
+//   if (!loading && user && address === null) {
+//     saveLocation();
+//   }
+// }, [loading, user, address]);
 
 
   const handleLogout = async () => {
@@ -266,13 +267,32 @@ const Navbar = () => {
                 <div className="ml-8 flex items-center text-sm text-gray-600">
                   <MapPin className="h-4 w-4 mr-1" />
                   <div>
-                    <span className="text-xs text-gray-500">{address
+                    {/*<span className="text-xs text-gray-500">{address
         ? `${address.city}, ${address.state}`
         : "Detecting location..."}</span>
                     <button 
                     onClick={() => navigate("/profile")}
                     className="block text-sm font-medium hover:text-amber-600">
                       Update Address
+                    </button>*/}
+                    <button
+                      onClick={async () => {
+                        try {
+                          const { lat, lng } = await getBrowserLocation();
+
+                          const res = await axiosInstance.post(
+                            "/api/address/autofill",
+                            { lat, lng },
+                            { withCredentials: true }
+                          );
+
+                          setAddress(res.data);
+                        } catch (err) {
+                          console.error("User denied location");
+                        }
+                      }}
+                    >
+                      Use Current Location
                     </button>
                   </div>
                 </div>

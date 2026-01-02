@@ -32,8 +32,11 @@ router.post("/autofill", protectRoute, async (req, res) => {
   const { lat, lng } = req.body;
   const userId = req.user._id;
 
+  if (!lat || !lng) {
+    return res.status(400).json({ message: "Coordinates missing" });
+  }
+
   try {
-    // Reverse Geocode
     const geoRes = await axios.get(
       "https://nominatim.openstreetmap.org/reverse",
       {
@@ -43,12 +46,12 @@ router.post("/autofill", protectRoute, async (req, res) => {
           format: "json",
         },
         headers: {
-          "User-Agent": "Ecommerce-App",
+          "User-Agent": "UtsaviCraft/1.0 (contact@utsavicraft.com)",
         },
       }
     );
 
-    const addr = geoRes.data.address;
+    const addr = geoRes.data.address || {};
 
     const addressData = {
       userId,
@@ -62,24 +65,20 @@ router.post("/autofill", protectRoute, async (req, res) => {
       isDefault: true,
     };
 
-    // Remove previous default address
-    await Address.updateMany(
-      { userId },
-      { isDefault: false }
-    );
+    await Address.updateMany({ userId }, { isDefault: false });
 
-    // Upsert default address
     const savedAddress = await Address.findOneAndUpdate(
-      { userId, isDefault: true },
+      { userId },          
       addressData,
       { new: true, upsert: true }
     );
 
     res.json(savedAddress);
   } catch (error) {
-    console.error("Autofill error:", error.message);
+    console.error("Autofill error:", error);
     res.status(500).json({ message: "Failed to save address" });
   }
 });
+
 
 export default router;
