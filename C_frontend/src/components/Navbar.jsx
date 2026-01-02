@@ -27,13 +27,11 @@ const Navbar = () => {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const { user, logout} = useAuth();
-
- 
+  const { user, loadings, logout } = useAuth(); 
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const { currency, setCurrency, loading } = useCurrency();
   const [address, setAddress] = useState(null);
-
+  
 
   
   // Fetch categories from database
@@ -103,12 +101,32 @@ const Navbar = () => {
   };
 
   useEffect(() => {
+  const fetchAddress = async () => {
+    try {
+      const res = await axiosInstance.get(
+        "/api/address/default",
+        { withCredentials: true }
+      );
+      setAddress(res.data);
+    } catch (err) {
+      console.log("No saved address");
+    }
+  };
+
+  if (!loadings && user) {
+    fetchAddress();
+  }
+}, [loadings, user]);
+
+
+
+  useEffect(() => {
   const saveLocation = async () => {
     try {
       const { lat, lng } = await getBrowserLocation();
 
       const res = await axiosInstance.post(
-        "/api/address/autofill",
+        "/api/addresses/autofill",
         { lat, lng },
         { withCredentials: true }
       );
@@ -119,8 +137,10 @@ const Navbar = () => {
     }
   };
 
-  saveLocation();
-  }, []);
+  if (!loadings && user && !address) {
+    saveLocation();
+  }
+}, [loadings, user, address]);
 
 
   const handleLogout = async () => {

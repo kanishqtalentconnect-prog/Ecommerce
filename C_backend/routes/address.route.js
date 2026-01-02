@@ -17,6 +17,15 @@ router.get("/", protectRoute, getAllAddress);
 router.put("/:id", protectRoute, updateAddress);
 router.delete("/:id", protectRoute, deleteAddress);
 router.patch("/:id/default", protectRoute, defaultAddress);
+router.get("/default", protectRoute, async (req, res) => {
+  const address = await Address.findOne({
+    userId: req.user._id,
+    isDefault: true,
+  });
+
+  res.json(address);
+});
+
 router.post("/autofill", protectRoute, async (req, res) => {
   const { lat, lng } = req.body;
   const userId = req.user._id;
