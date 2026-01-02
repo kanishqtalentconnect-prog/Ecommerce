@@ -137,7 +137,7 @@ const Navbar = () => {
     }
   };
 
-  if (!loading && user && !address) {
+  if (!loading && user && address === null) {
     saveLocation();
   }
 }, [loading, user, address]);

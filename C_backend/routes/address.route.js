@@ -22,7 +22,9 @@ router.get("/default", protectRoute, async (req, res) => {
     userId: req.user._id,
     isDefault: true,
   });
-
+  if (!address) {
+    return res.json(null);
+  }
   res.json(address);
 });
 
