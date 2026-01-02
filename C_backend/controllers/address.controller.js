@@ -120,3 +120,61 @@ export const saveLocation = async (req, res) => {
     res.status(500).json({ message: "Failed to save location" });
   }
 };
+
+export const autofillAddress = async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+
+    if (!lat || !lng) {
+      return res.status(400).json({ message: "Latitude & longitude required" });
+    }
+
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const geoRes = await axios.get(
+      "https://maps.googleapis.com/maps/api/geocode/json",
+      {
+        params: {
+          latlng: `${lat},${lng}`,
+          key: process.env.GOOGLE_MAPS_API_KEY,
+        },
+      }
+    );
+
+    const results = geoRes.data.results;
+    if (!results || !results.length) {
+      return res.status(400).json({ message: "No address found" });
+    }
+
+    const components = results[0].address_components;
+
+    const get = (type) =>
+      components.find(c => c.types.includes(type))?.long_name || "";
+
+    // Remove previous default
+    await Address.updateMany(
+      { userId: req.user._id },
+      { isDefault: false }
+    );
+
+    const address = await Address.create({
+      userId: req.user._id,
+      fullName: req.user.name || "User",
+      street: `${get("street_number")} ${get("route")}`.trim() || "N/A",
+      city: get("locality") || get("administrative_area_level_2") || "N/A",
+      state: get("administrative_area_level_1") || "N/A",
+      zipcode: get("postal_code") || "000000",
+      country: get("country") || "India",
+      phone: "0000000000",
+      isDefault: true,
+    });
+
+    res.status(200).json(address);
+
+  } catch (error) {
+    console.error("AUTOFILL ERROR:", error.response?.data || error.message);
+    res.status(500).json({ message: "Autofill failed" });
+  }
+};
