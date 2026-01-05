@@ -40,6 +40,15 @@ const Navbar = () => {
     setPublicLocation(JSON.parse(saved));
   }
   }, []);
+  useEffect(() => {
+  // Auto-detect ONLY when:
+  // 1. No logged-in user
+  // 2. No saved public location
+  // 3. Auth loading finished
+  if (!loading && !user && !publicLocation) {
+    detectLocation();
+  }
+}, [loading, user, publicLocation]);
 
   
   // Fetch categories from database
@@ -108,6 +117,23 @@ const Navbar = () => {
     }
   };
 
+//   useEffect(() => {
+//   const fetchAddress = async () => {
+//     try {
+//       const res = await axiosInstance.get(
+//         "/api/address/default",
+//         { withCredentials: true }
+//       );
+//       setAddress(res.data);
+//     } catch (err) {
+//       console.log("No saved address");
+//     }
+//   };
+
+//   if (!loading && user) {
+//     fetchAddress();
+//   }
+// }, [loading, user]);
   useEffect(() => {
   const fetchAddress = async () => {
     try {
@@ -115,8 +141,17 @@ const Navbar = () => {
         "/api/address/default",
         { withCredentials: true }
       );
-      setAddress(res.data);
-    } catch (err) {
+
+      if (res.data) {
+        setAddress(res.data);
+
+        // 🔥 IMPORTANT: sync UI location
+        setPublicLocation({
+          city: res.data.city,
+          state: res.data.state,
+        });
+      }
+    } catch {
       console.log("No saved address");
     }
   };
