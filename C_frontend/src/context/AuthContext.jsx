@@ -8,6 +8,25 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+  const saveAddressAfterLogin = async () => {
+    const loc = localStorage.getItem("publicLocation");
+    if (!loc) return;
+
+    await axiosInstance.post(
+      "/api/addresses/autofill",
+      JSON.parse(loc),
+      { withCredentials: true }
+    );
+
+    localStorage.removeItem("publicLocation");
+  };
+
+  if (!loading && user) {
+    saveAddressAfterLogin();
+  }
+}, [loading, user]);
 
   // Check if user is already logged in on component mount
   useEffect(() => {

@@ -17,6 +17,7 @@ import axiosInstance from "../lib/axios.js";
 import { useCurrency } from '../context/CurrencyContext';
 import Flag from 'react-world-flags';
 import { getBrowserLocation } from "../utils/getBrowserLocation.js";
+import { reverseGeocode } from "../utils/reverseGeocode";
 
 
 const Navbar = () => {
@@ -31,7 +32,14 @@ const Navbar = () => {
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const { currency, setCurrency } = useCurrency();
   const [address, setAddress] = useState(null);
+  const [publicLocation, setPublicLocation] = useState(null);
   
+  useEffect(() => {
+  const saved = localStorage.getItem("publicLocation");
+  if (saved) {
+    setPublicLocation(JSON.parse(saved));
+  }
+  }, []);
 
   
   // Fetch categories from database
@@ -118,6 +126,18 @@ const Navbar = () => {
   }
 }, [loading, user]);
 
+  const detectLocation = async () => {
+  try {
+    const { lat, lng } = await getBrowserLocation();
+    console.log("Coords:", lat, lng, typeof lat, typeof lng);
+    const location = await reverseGeocode(lat, lng);
+
+    setPublicLocation(location);
+    localStorage.setItem("publicLocation", JSON.stringify(location));
+  } catch {
+    console.log("Location denied");
+  }
+};
 
   const handleLogout = async () => {
     await logout();
@@ -242,35 +262,56 @@ const Navbar = () => {
                 <div className="ml-8 flex items-center text-sm text-gray-600">
                   <MapPin className="h-4 w-4 mr-1" />
                   <div>
-                    <span className="text-xs text-gray-500">
+                    {/*<span className="text-xs text-gray-500">
                     {address?.city || address?.state
                       ? [address.city, address.state].filter(Boolean).join(", ")
                       : "Detecting location..."}
+                    </span>*/}
+                    <span className="text-xs text-gray-500">
+                      {publicLocation
+                        ? `${publicLocation.city}, ${publicLocation.state}`
+                        : "No location..."}
                     </span>
 
                     <button
                       onClick={async () => {
                         try {
-                          const location = await getBrowserLocation();
-                          const lat = location.lat ?? location.latitude;
-                          const lng = location.lng ?? location.longitude;
-                          console.log("Sending coords:", lat, lng);
+                          const coords = await getBrowserLocation();
 
+                          if (
+                            !coords ||
+                            typeof coords.lat !== "number" ||
+                            typeof coords.lng !== "number"
+                          ) {
+                            throw new Error("Invalid coordinates");
+                          }
 
-                          const res = await axiosInstance.post(
-                            "/api/address/autofill",
-                            { lat, lng },
-                            { withCredentials: true }
-                          );
+                          console.log("Coords:", coords.lat, coords.lng);
 
-                          setAddress(res.data);
+                          const location = await reverseGeocode(coords.lat, coords.lng);
+
+                          setPublicLocation(location);
+                          localStorage.setItem("publicLocation", JSON.stringify(location));
+
+                          // Save to DB only if logged in
+                          if (user) {
+                            await axiosInstance.post(
+                              "/api/address/autofill",
+                              location,
+                              { withCredentials: true }
+                            );
+                          }
                         } catch (err) {
-                          console.error("User denied location");
+                          console.error("Location denied or unavailable", err);
+                          alert("Please allow location access in your browser settings.");
                         }
                       }}
-                    className="block text-sm font-medium hover:text-amber-600">
+                      className="block text-sm font-medium hover:text-amber-600"
+                    >
                       Use Current Location
                     </button>
+
+
                   </div>
                 </div>
               </div>

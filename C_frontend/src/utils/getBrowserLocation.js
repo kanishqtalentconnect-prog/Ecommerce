@@ -1,18 +1,19 @@
-export const getBrowserLocation = () => {
-  return new Promise((resolve, reject) => {
+export const getBrowserLocation = () =>
+  new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject("Geolocation not supported");
+      reject(new Error("Geolocation not supported"));
+      return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
         });
       },
       (error) => {
-        reject(error.message);
+        reject(error);
       },
       {
         enableHighAccuracy: true,
@@ -21,4 +22,3 @@ export const getBrowserLocation = () => {
       }
     );
   });
-};
