@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Create the context
 export const CurrencyContext = createContext();
-
+const API_KEY = import.meta.env.VITE_EXCHANGE_RATE_API_KEY;
 // Currency symbols mapping
 const CURRENCY_SYMBOLS = {
   INR: '₹',
@@ -40,7 +40,7 @@ export const CurrencyProvider = ({ children }) => {
         // You would need to sign up for a free API key at https://www.exchangerate-api.com/
         // Replace YOUR_API_KEY with your actual API key
         const response = await axios.get(
-          `https://v6.exchangerate-api.com/v6/${import.meta.env.VITE_EXCHANGE_RATE_API_KEY}/latest/INR`
+          `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/INR`
         );
         
         if (response.data && response.data.conversion_rates) {
