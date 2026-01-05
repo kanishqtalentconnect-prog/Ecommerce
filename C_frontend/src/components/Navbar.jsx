@@ -332,7 +332,10 @@ const Navbar = () => {
                           if (user) {
                             await axiosInstance.post(
                               "/api/address/autofill",
-                              location,
+                              {
+                                lat: coords.lat,
+                                lng: coords.lng
+                              },
                               { withCredentials: true }
                             );
                           }
