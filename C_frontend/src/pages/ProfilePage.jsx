@@ -13,11 +13,15 @@ import {
   Eye,
   Calendar,
   Award,
-  Camera
+  Camera,
+  House
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import axiosInstance from "../lib/axios";
-import ReviewFormModal from "../components/ReviewFromModal"
+import ReviewFormModal from "../components/ReviewFromModal";
+import AddressForm from "./AddressForm";
+import { useAddress } from "../context/AddressContext";
+
 
 const ProfilePage = () => {
   const { user, logout } = useAuth();
@@ -31,6 +35,20 @@ const ProfilePage = () => {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+
+  const [addresses, setAddresses] = useState([]);
+  const [addressLoading, setAddressLoading] = useState(true);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
+
+  const { fetchDefaultAddress } = useAddress();
+
+  useEffect(() => {
+  if (activeTab === "location" && user) {
+    fetchAddresses();
+  }
+}, [activeTab, user]);
+
 
   useEffect(() => {
     if (!user) {
@@ -105,6 +123,44 @@ const ProfilePage = () => {
       />
     ));
   };
+
+  const fetchAddresses = async () => {
+  try {
+    setAddressLoading(true);
+    const res = await axiosInstance.get("/api/address", {
+      withCredentials: true,
+    });
+    setAddresses(res.data || []);
+  } catch (err) {
+    console.error("Failed to fetch addresses", err);
+  } finally {
+    setAddressLoading(false);
+  }
+  };
+  const setDefaultAddress = async (id) => {
+  await axiosInstance.patch(
+    `/api/address/${id}/default`,
+    {},
+    { withCredentials: true }
+  );
+  await fetchAddresses();       
+  await fetchDefaultAddress();  
+};
+  const deleteAddress = async (id, isDefault) => {
+  if (isDefault) {
+    alert("Please set another address as default before deleting this one.");
+    return;
+  }
+
+  if (!window.confirm("Delete this address?")) return;
+
+  await axiosInstance.delete(`/api/address/${id}`, {
+    withCredentials: true,
+  });
+
+  fetchAddresses();
+};
+
 
   if (!user) {
     return null;
@@ -213,6 +269,17 @@ const ProfilePage = () => {
             >
               <User className="h-4 w-4" />
               Account
+            </button>
+            <button
+              onClick={() => setActiveTab('location')}
+              className={`px-6 py-4 text-sm font-medium flex items-center gap-2 ${
+                activeTab === 'location' 
+                  ? 'text-amber-600 border-b-2 border-amber-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <House className="h-4 w-4" />
+              My Addresses
             </button>
           </div>
         </div>
@@ -484,6 +551,84 @@ const ProfilePage = () => {
               </div>
             </div>
           )}
+
+          {/*Address Tab */}
+          {activeTab === "location" && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">My Addresses</h2>
+                <button
+                  onClick={() => {
+                    setEditingAddress(null);
+                    setShowAddressForm(true);
+                  }}
+                  className="bg-amber-600 text-white px-4 py-2 rounded"
+                >
+                  + Add Address
+                </button>
+              </div>
+
+              {addressLoading ? (
+                <p>Loading addresses...</p>
+              ) : addresses.length === 0 ? (
+                <p className="text-gray-500">No addresses saved.</p>
+              ) : (
+                <div className="space-y-4">
+                  {addresses.map((addr) => (
+                    <div
+                      key={addr._id}
+                      className={`border rounded-lg p-4 ${
+                        addr.isDefault ? "border-amber-500 bg-amber-50" : ""
+                      }`}
+                    >
+                      <p className="font-medium">{addr.fullName}</p>
+                      <p className="text-sm text-gray-600">
+                        {addr.street}, {addr.city}, {addr.state} - {addr.zipcode}
+                      </p>
+                      <p className="text-sm">{addr.country}</p>
+                      <p className="text-sm">📞 {addr.phone}</p>
+
+                      <div className="flex gap-3 mt-3 text-sm">
+                        {!addr.isDefault && (
+                          <button
+                            onClick={() => setDefaultAddress(addr._id)}
+                            className="text-amber-600"
+                          >
+                            Set Default
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setEditingAddress(addr);
+                            setShowAddressForm(true);
+                          }}
+                          className="text-blue-600"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteAddress(addr._id, addr.isDefault)}
+                          className="text-red-600"
+                        >
+                          Delete
+                        </button>
+
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {showAddressForm && (
+            <AddressForm
+              initialData={editingAddress}
+              onClose={() => setShowAddressForm(false)}
+              onSaved={fetchAddresses}
+            />
+          )}
+
 
           {/* Admin Section */}
           {user.role === "admin" && activeTab === 'account' && (

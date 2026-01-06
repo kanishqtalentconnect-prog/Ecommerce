@@ -17,7 +17,7 @@ export const getBrowserLocation = () =>
       },
       {
         enableHighAccuracy: true,
-        timeout: 20000,
+        timeout: 30000,
         maximumAge: 0,
       }
     );

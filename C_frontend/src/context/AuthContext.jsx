@@ -11,21 +11,28 @@ export const AuthProvider = ({ children }) => {
   
   useEffect(() => {
   const saveAddressAfterLogin = async () => {
-    const loc = localStorage.getItem("publicLocation");
-    if (!loc) return;
+      const coordsRaw = localStorage.getItem("publicCoords");
+      if (!coordsRaw) return;
 
-    await axiosInstance.post(
-      "/api/addresses/autofill",
-      JSON.parse(loc),
-      { withCredentials: true }
-    );
+      const { lat, lng } = JSON.parse(coordsRaw);
+      if (typeof lat !== "number" || typeof lng !== "number") return;
 
-    localStorage.removeItem("publicLocation");
-  };
+      try {
+        await axiosInstance.post(
+          "/api/address/autofill",
+          { lat, lng },
+          { withCredentials: true }
+        );
 
-  if (!loading && user) {
-    saveAddressAfterLogin();
-  }
+        localStorage.removeItem("publicCoords");
+      } catch (err) {
+        console.error("Autofill after login failed:", err.message);
+      }
+    };
+
+    if (!loading && user) {
+      saveAddressAfterLogin();
+    }
 }, [loading, user]);
 
   // Check if user is already logged in on component mount

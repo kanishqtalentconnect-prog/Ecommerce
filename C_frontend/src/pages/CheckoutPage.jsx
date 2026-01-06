@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from "../context/AuthContext";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  
+  const { user, loading: authLoading } = useAuth();
   // Form states
   const [email, setEmail] = useState('');
   const [emailNewsOffer, setEmailNewsOffer] = useState(false);
@@ -51,6 +52,26 @@ export default function CheckoutPage() {
   const [formErrors, setFormErrors] = useState({});
   const [processingOrder, setProcessingOrder] = useState(false);
   
+  // Fetch email
+  useEffect(() => {
+  if (!authLoading && user?.email && !email) {
+    setEmail(user.email);
+  }
+}, [authLoading, user]);
+
+  useEffect(() => {
+  const savedEmail = localStorage.getItem("checkoutEmail");
+  if (savedEmail && !email) {
+    setEmail(savedEmail);
+  }
+}, []);
+
+  useEffect(() => {
+  if (email) {
+    localStorage.setItem("checkoutEmail", email);
+  }
+}, [email]);
+
   // Store location details
   const storeLocation = {
     name: "BudhShiv Lajpat Nagar I Lajpat Nagar",
@@ -322,6 +343,7 @@ export default function CheckoutPage() {
 
       // Create order
       const orderData = {
+        email,
         products: cartItems.map(item => ({
           product: item.product._id,
           quantity: item.quantity,
@@ -348,7 +370,7 @@ export default function CheckoutPage() {
 
       if (response.status === 201) {
         const createdOrderId = response.data.order._id;
-        
+        localStorage.removeItem("checkoutEmail");
         // Redirect to payment page with the order ID
         navigate('/payment', { 
           state: { orderId: createdOrderId }

@@ -18,6 +18,8 @@ import { useCurrency } from '../context/CurrencyContext';
 import Flag from 'react-world-flags';
 import { getBrowserLocation } from "../utils/getBrowserLocation.js";
 import { reverseGeocode } from "../utils/reverseGeocode";
+import { useAddress } from "../context/AddressContext";
+
 
 
 const Navbar = () => {
@@ -31,8 +33,8 @@ const Navbar = () => {
   const { user, loading, logout } = useAuth(); 
   const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const { currency, setCurrency } = useCurrency();
-  const [address, setAddress] = useState(null);
   const [publicLocation, setPublicLocation] = useState(null);
+  const { defaultAddress, fetchDefaultAddress } = useAddress();
   
   useEffect(() => {
   const saved = localStorage.getItem("publicLocation");
@@ -40,15 +42,57 @@ const Navbar = () => {
     setPublicLocation(JSON.parse(saved));
   }
   }, []);
+  // useEffect(() => {
+  // const autoAutofillOnLogin = async () => {
+  //   try {
+  //     // only if logged in & no address yet
+  //     if (!user || address) return;
+
+  //     const coords = await getBrowserLocation();
+  //     if (!coords?.lat || !coords?.lng) return;
+
+  //     await axiosInstance.post(
+  //       "/api/address/autofill",
+  //       { lat: coords.lat, lng: coords.lng },
+  //       { withCredentials: true }
+  //     );
+
+  //     // refetch saved address
+  //     const res = await axiosInstance.get("/api/address/default", {
+  //       withCredentials: true,
+  //     });
+
+  //     if (res.data) {
+  //       setAddress(res.data);
+  //       setPublicLocation({
+  //         city: res.data.city,
+  //         state: res.data.state,
+  //       });
+  //     }
+  //   } catch (err) {
+  //     console.log("Auto autofill skipped:", err.message);
+  //   }
+  // };
+
+//   if (!loading && user) {
+//     autoAutofillOnLogin();
+//   }
+// }, [loading, user]);
+
   useEffect(() => {
-  // Auto-detect ONLY when:
-  // 1. No logged-in user
-  // 2. No saved public location
-  // 3. Auth loading finished
-  if (!loading && !user && !publicLocation) {
-    detectLocation();
+  if (loading) return;
+  if (user) return;
+  if (publicLocation) return;
+
+  detectLocation();
+}, [loading, user]);
+
+  useEffect(() => {
+  if (user && defaultAddress) {
+    setPublicLocation(null);
+    localStorage.removeItem("publicLocation");
   }
-}, [loading, user, publicLocation]);
+}, [user, defaultAddress]);
 
   
   // Fetch categories from database
@@ -134,45 +178,27 @@ const Navbar = () => {
 //     fetchAddress();
 //   }
 // }, [loading, user]);
-  useEffect(() => {
-  const fetchAddress = async () => {
-    try {
-      const res = await axiosInstance.get(
-        "/api/address/default",
-        { withCredentials: true }
-      );
+  
 
-      if (res.data) {
-        setAddress(res.data);
-
-        // 🔥 IMPORTANT: sync UI location
-        setPublicLocation({
-          city: res.data.city,
-          state: res.data.state,
-        });
-      }
-    } catch {
-      console.log("No saved address");
-    }
-  };
-
-  if (!loading && user) {
-    fetchAddress();
-  }
-}, [loading, user]);
 
   const detectLocation = async () => {
   try {
     const { lat, lng } = await getBrowserLocation();
-    console.log("Coords:", lat, lng, typeof lat, typeof lng);
     const location = await reverseGeocode(lat, lng);
 
     setPublicLocation(location);
-    localStorage.setItem("publicLocation", JSON.stringify(location));
+    localStorage.setItem(
+      "publicLocation",
+      JSON.stringify({
+    city: location.city,
+    state: location.state,
+  })
+    );
   } catch {
     console.log("Location denied");
   }
 };
+
 
   const handleLogout = async () => {
     await logout();
@@ -303,51 +329,53 @@ const Navbar = () => {
                       : "Detecting location..."}
                     </span>*/}
                     <span className="text-xs text-gray-500">
-                      {publicLocation
-                        ? `${publicLocation.city}, ${publicLocation.state}`
-                        : "No location..."}
+                      {defaultAddress
+                        ? `${defaultAddress.city}, ${defaultAddress.state}`
+                        : publicLocation
+                          ? `${publicLocation.city}, ${publicLocation.state}`
+                          : "No location"}
                     </span>
 
                     <button
                       onClick={async () => {
                         try {
-                          const coords = await getBrowserLocation();
+                          const { lat, lng } = await getBrowserLocation();
 
-                          if (
-                            !coords ||
-                            typeof coords.lat !== "number" ||
-                            typeof coords.lng !== "number"
-                          ) {
+                          if (typeof lat !== "number" || typeof lng !== "number") {
                             throw new Error("Invalid coordinates");
                           }
 
-                          console.log("Coords:", coords.lat, coords.lng);
-
-                          const location = await reverseGeocode(coords.lat, coords.lng);
-
-                          setPublicLocation(location);
-                          localStorage.setItem("publicLocation", JSON.stringify(location));
-
-                          // Save to DB only if logged in
-                          if (user) {
-                            await axiosInstance.post(
-                              "/api/address/autofill",
-                              {
-                                lat: coords.lat,
-                                lng: coords.lng
-                              },
-                              { withCredentials: true }
-                            );
+                          // Guest user → just show city/state
+                          if (!user) {
+                            const location = await reverseGeocode(lat, lng);
+                            setPublicLocation(location);
+                            localStorage.setItem("publicLocation", JSON.stringify({
+                              city: location.city,
+                              state: location.state,
+                            }));
+                            return;
                           }
+
+                          // Logged in → save to DB
+                          await axiosInstance.post(
+                            "/api/address/autofill",
+                            { lat, lng },
+                            { withCredentials: true }
+                          );
+
+                          // 🔥 THIS updates Navbar instantly
+                          await fetchDefaultAddress();
+
                         } catch (err) {
-                          console.error("Location denied or unavailable", err);
-                          alert("Please allow location access in your browser settings.");
+                          console.error("Location error", err);
+                          alert("Please allow location access.");
                         }
                       }}
                       className="block text-sm font-medium hover:text-amber-600"
                     >
                       Use Current Location
                     </button>
+
 
 
                   </div>
