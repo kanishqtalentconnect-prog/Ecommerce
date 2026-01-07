@@ -42,6 +42,11 @@ export const razorpayWebhook = async (req, res) => {
         return res.status(200).json({ status: 'ok' });
       }
 
+      if (order && order.paymentStatus === 'paid') {
+        return res.status(200).json({ status: 'already_paid' });
+      }
+
+
       // Prevent duplicate updates
       if (order.paymentStatus === 'paid') {
         return res.status(200).json({ status: 'already_processed' });
@@ -68,7 +73,7 @@ export const razorpayWebhook = async (req, res) => {
       }
       const order = await Order.findOne({ razorpayOrderId });
 
-      if (order) {
+      if (order && order.paymentStatus !== 'paid') {
         order.paymentStatus = 'failed';
         order.orderStatus = 'pending';
         await order.save();
