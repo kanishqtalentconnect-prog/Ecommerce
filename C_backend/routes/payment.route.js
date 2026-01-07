@@ -1,16 +1,24 @@
 import express from "express";
-import { createOrder, verifyPayment, getOrderStatus } from "../controllers/payment.controller.js";
+import {
+  createOrder,
+  verifyPayment,
+  getOrderStatus,
+  razorpayWebhook
+} from "../controllers/payment.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// Create a Razorpay order
+//  USER ROUTES
 router.post("/create-order", protectRoute, createOrder);
-
-// Verify payment after completion
 router.post("/verify-payment", protectRoute, verifyPayment);
-
-// Get order details
 router.get("/order/:orderId", protectRoute, getOrderStatus);
+
+// RAZORPAY WEBHOOK (NO AUTH)
+router.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  razorpayWebhook
+);
 
 export default router;

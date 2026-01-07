@@ -10,10 +10,15 @@ export default function PaymentPage() {
   const [error, setError] = useState(null);
   const [orderDetails, setOrderDetails] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [razorpayReady, setRazorpayReady] = useState(false);
+
   
   // Get order ID from URL state or query parameters
   const orderId = location.state?.orderId || new URLSearchParams(location.search).get('orderId');
-  
+  useEffect(() => {
+    loadRazorpayScript();
+}, []);
+
   useEffect(() => {
     // If no order ID, redirect back to checkout
     if (!orderId) {
@@ -24,14 +29,13 @@ export default function PaymentPage() {
     // Fetch order details
     fetchOrderDetails();
     
-    // Load Razorpay script
-    loadRazorpayScript();
   }, [orderId]);
   
   // Load Razorpay script
   const loadRazorpayScript = async () => {
     try {
       await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+      setRazorpayReady(true);
     } catch (error) {
       console.error('Razorpay script failed to load:', error);
       setError('Payment gateway failed to load. Please refresh the page or try again later.');
@@ -58,89 +62,107 @@ export default function PaymentPage() {
     }
   };
   
-  // Initialize Razorpay payment
-  const initializePayment = async () => {
-    try {
-      setProcessingPayment(true);
-      
-      // Create Razorpay order
-      const orderResponse = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/payments/create-order`,
-        {
-          amount: orderDetails.totalAmount,
-          orderId: orderDetails._id
-        },
-        { withCredentials: true }
-      );
-      
-      if (!orderResponse.data) {
-        throw new Error('Failed to create payment order');
-      }
-      
-      // Configure Razorpay options
-      const options = {
-        key: orderResponse.data.keyId,
-        amount: orderResponse.data.amount * 100, // in paise
-        currency: orderResponse.data.currency,
-        name: 'BudhShiv Store',
-        description: `Order #${orderDetails._id}`,
-        order_id: orderResponse.data.orderId,
-        handler: async function(response) {
-          try {
-            // Verify payment with backend
-            const verificationResponse = await axios.post(
-              `${import.meta.env.VITE_API_URL}/api/payments/verify-payment`,
-              {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                orderId: orderDetails._id
-              },
-              { withCredentials: true }
-            );
-            
-            if (verificationResponse.data.success) {
-              // Redirect to success page
-              navigate(`/order-confirmation?orderId=${orderDetails._id}`);
-            } else {
-              setError('Payment verification failed. Please contact support.');
-            }
-          } catch (error) {
-            console.error('Payment verification failed:', error);
-            setError('Payment verification failed. Please contact support.');
+const initializePayment = async () => {
+  // Prevent double click
+  if (processingPayment) return;
+
+  // Prevent re-payment
+  if (orderDetails.paymentStatus === 'paid') {
+    navigate(`/order-confirmation?orderId=${orderDetails._id}`);
+    return;
+  }
+
+  setProcessingPayment(true);
+
+  try {
+    // Create Razorpay order
+    const orderResponse = await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/payments/create-order`,
+      { orderId: orderDetails._id },
+      { withCredentials: true }
+    );
+
+    const options = {
+      key: orderResponse.data.keyId,
+      amount: orderResponse.data.amount,
+      currency: orderResponse.data.currency,
+      name: 'BudhShiv Store',
+      description: `Order #${orderDetails._id}`,
+      order_id: orderResponse.data.orderId,
+      notes: {
+        internal_order_id: orderDetails._id,
+        user_id: orderDetails.user,
+      },
+
+
+      handler: async (response) => {
+        try {
+          const verifyRes = await axios.post(
+            `${import.meta.env.VITE_API_URL}/api/payments/verify-payment`,
+            {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: orderDetails._id,
+            },
+            { withCredentials: true }
+          );
+
+          if (verifyRes.data.success) {
+            setProcessingPayment(false);
+            navigate(`/order-confirmation?orderId=${orderDetails._id}`);
+          } else {
+            setError('Payment verification failed');
+            setProcessingPayment(false);
           }
-        },
-        prefill: {
-          name: `${orderDetails.shippingDetails.addressId?.fullName || 
-            orderDetails.shippingDetails.pickupInfo?.fullName || ''}`,
-          email: '',
-          contact: orderDetails.shippingDetails.addressId?.phone || 
-            orderDetails.shippingDetails.pickupInfo?.phoneNumber || ''
-        },
-        notes: {
-          order_id: orderDetails._id
-        },
-        theme: {
-          color: '#3399cc'
+        } catch {
+          setError('Payment verification failed');
+          setProcessingPayment(false);
         }
-      };
-      
-      // Initialize Razorpay
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-      
-      // Razorpay modal close handler
-      razorpay.on('payment.failed', function(response) {
-        setError(`Payment failed: ${response.error.description}`);
-      });
-      
-    } catch (error) {
-      console.error('Payment initialization failed:', error);
-      setError('Failed to initialize payment. Please try again.');
-    } finally {
+      },
+
+      prefill: {
+        name:
+          orderDetails.shippingDetails.addressId?.fullName ||
+          orderDetails.shippingDetails.pickupInfo?.fullName ||
+          '',
+        email: orderDetails.email || '',
+        contact:
+          orderDetails.shippingDetails.addressId?.phone ||
+          orderDetails.shippingDetails.pickupInfo?.phoneNumber ||
+          '',
+      },
+
+      theme: { color: '#3399cc' },
+    };
+
+    if (!window.Razorpay) {
+      setError('Payment gateway not available. Please refresh.');
       setProcessingPayment(false);
+      return;
     }
-  };
+    const razorpay = new window.Razorpay(options);
+    
+
+    razorpay.open();
+
+    // Payment failed
+    razorpay.on('payment.failed', (response) => {
+      setError(response.error.description);
+      setProcessingPayment(false);
+    });
+
+    // User closed modal
+    razorpay.on('modal.closed', () => {
+      setProcessingPayment(false);
+    });
+
+  } catch (error) {
+    console.error(error);
+    setError('Failed to initialize payment');
+    setProcessingPayment(false);
+  }
+};
   
   // Cancel order
   const cancelOrder = () => {
@@ -222,7 +244,7 @@ export default function PaymentPage() {
         <div className="flex flex-col sm:flex-row gap-4">
           <button
             onClick={initializePayment}
-            disabled={processingPayment}
+            disabled={processingPayment || !razorpayReady}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-3 px-6 rounded-lg font-medium flex-1 flex justify-center items-center"
           >
             {processingPayment ? (
