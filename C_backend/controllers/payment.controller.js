@@ -10,9 +10,8 @@ dotenv.config();
 export const razorpayWebhook = async (req, res) => {
   try {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-
     const signature = req.headers['x-razorpay-signature'];
-    const body = req.body.toString(); // RAW BODY REQUIRED
+    const body = req.body.toString();
 
     const expectedSignature = crypto
       .createHmac('sha256', secret)
@@ -20,70 +19,43 @@ export const razorpayWebhook = async (req, res) => {
       .digest('hex');
 
     if (signature !== expectedSignature) {
-      console.error('Invalid Razorpay webhook signature');
       return res.status(400).send('Invalid signature');
     }
 
     const event = JSON.parse(body);
 
-    /* ===============================
-       HANDLE EVENTS
-    =============================== */
-
-    // ✅ ORDER PAID (BEST EVENT)
     if (event.event === 'order.paid') {
       const razorpayOrderId = event.payload.order.entity.id;
       const razorpayPaymentId = event.payload.payment.entity.id;
 
       const order = await Order.findOne({ razorpayOrderId });
+      if (!order) return res.status(200).json({ ok: true });
 
-      if (!order) {
-        console.error('Order not found for webhook');
-        return res.status(200).json({ status: 'ok' });
+      // 🔐 DO NOT overwrite if already processed
+      if (order.paymentId) {
+        return res.status(200).json({ ok: true });
       }
 
-      if (order && order.paymentStatus === 'paid') {
-        return res.status(200).json({ status: 'already_paid' });
-      }
-
-
-      // Prevent duplicate updates
-      if (order.paymentStatus === 'paid') {
-        return res.status(200).json({ status: 'already_processed' });
-      }
-
-      order.paymentStatus = 'paid';
-      order.orderStatus = 'confirmed';
-      order.paymentDetails = {
-        razorpayOrderId,
-        razorpayPaymentId,
-        method: 'razorpay',
-      };
+      order.status = 'processing';
+      order.paymentId = razorpayPaymentId;
       order.paymentDate = new Date();
-
       await order.save();
     }
 
-    // ❌ PAYMENT FAILED
     if (event.event === 'payment.failed') {
-      const razorpayOrderId =
-        event.payload?.payment?.entity?.order_id;
-      if (!razorpayOrderId) {
-        return res.status(200).json({ status: 'ok' });
-      }
+      const razorpayOrderId = event.payload.payment.entity.order_id;
       const order = await Order.findOne({ razorpayOrderId });
 
-      if (order && order.paymentStatus !== 'paid') {
-        order.paymentStatus = 'failed';
-        order.orderStatus = 'pending';
+      if (order && !order.paymentId) {
+        order.status = 'failed';
         await order.save();
       }
     }
 
-    return res.status(200).json({ status: 'ok' });
-  } catch (error) {
-    console.error('Webhook error:', error);
-    return res.status(500).json({ message: 'Webhook handler error' });
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('Webhook error', err);
+    return res.status(200).json({ ok: true }); 
   }
 };
 
@@ -130,7 +102,7 @@ export const createOrder = async (req, res) => {
     });
     
     // Update the order with Razorpay order ID
-    existingOrder.paymentStatus = 'payment_created';
+    existingOrder.status = 'processing';
     existingOrder.razorpayOrderId = razorpayOrder.id;
     await existingOrder.save();
     
@@ -180,7 +152,7 @@ export const verifyPayment = async (req, res) => {
     }
 
     //Check if already paid
-    if (order.paymentStatus === 'paid') {
+    if (order.paymentId) {
       return res.status(200).json({
         success: true,
         message: 'Payment already verified',
@@ -196,21 +168,13 @@ export const verifyPayment = async (req, res) => {
     // Verify signature
     if (generatedSignature !== razorpay_signature) {
       // Signature verification failed
-      order.paymentStatus = 'failed';
-      order.orderStatus = 'pending';
+      order.status = 'failed';
       await order.save();
       return res.status(400).json({ message: 'Payment verification failed' });
     }
     
     // Payment successful, update order
-    order.paymentStatus = 'paid';
-    order.orderStatus = 'confirmed';
-    order.paymentDetails = {
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-      razorpaySignature: razorpay_signature,
-      method: 'razorpay',
-    };
+    order.paymentId = razorpay_payment_id;
     order.paymentDate = new Date();
     await order.save();
     
@@ -220,7 +184,7 @@ export const verifyPayment = async (req, res) => {
       order: {
         id: order._id,
         amount: order.totalAmount,
-        status: order.paymentStatus,
+        status: order.status,
         createdAt: order.createdAt
       }
     });
