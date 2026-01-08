@@ -4,6 +4,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ShoppingCart, Heart, Truck, Ruler, Heart as HeartIcon, Share, Tag, ZoomIn, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
+import axiosInstance from "../lib/axios";
+
 
 const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
