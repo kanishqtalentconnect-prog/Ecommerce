@@ -49,11 +49,16 @@ const ProfilePage = () => {
   const { fetchDefaultAddress } = useAddress();
 
   useEffect(() => {
-  if (activeTab === "location" && user) {
-    fetchAddresses();
-  }
-}, [activeTab, user]);
+    if (activeTab === "location" && user) {
+      fetchAddresses();
+    }
+  }, [activeTab, user]);
 
+  useEffect(() => {
+    if (activeTab === "wishlist" && user) {
+      fetchWishlist();
+    }
+  }, [activeTab, user]);
 
   useEffect(() => {
     if (!user) {
@@ -85,6 +90,19 @@ const ProfilePage = () => {
       setReviewLoading(false);
     }
   };
+
+  const fetchWishlist = async () => {
+    try {
+      setWishlistLoading(true);
+      const res = await axiosInstance.get("/api/wishlist");
+      setWishlist(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch wishlist", err);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
 
   const handleLogout = async () => {
     await logout();
@@ -644,6 +662,66 @@ const ProfilePage = () => {
               onSaved={fetchAddresses}
             />
           )}
+
+          {/* Wishlist Tab */}
+          {activeTab === "wishlist" && (
+            <div>
+              <h2 className="text-lg font-semibold mb-4">My Wishlist</h2>
+
+              {wishlistLoading ? (
+                <p>Loading wishlist...</p>
+              ) : wishlist.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Heart className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  Your wishlist is empty
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {wishlist.map((product) => (
+                    <div
+                      key={product._id}
+                      className="border rounded-lg p-3 hover:shadow-md transition"
+                    >
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="h-40 w-full object-cover rounded"
+                        onClick={() => navigate(`/product/${product._id}`)}
+                      />
+
+                      <div className="mt-2">
+                        <h3 className="font-medium">{product.name}</h3>
+                        <p className="text-sm text-gray-600">₹{product.price}</p>
+                      </div>
+
+                      <div className="flex justify-between mt-3">
+                        <button
+                          onClick={() => navigate(`/product/${product._id}`)}
+                          className="text-amber-600 text-sm"
+                        >
+                          View
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            await axiosInstance.post(
+                              "/api/wishlist/toggle",
+                              { productId: product._id }
+                            );
+                            fetchWishlist();
+                          }}
+                          className="text-red-600 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
 
 
           {/* Admin Section */}
