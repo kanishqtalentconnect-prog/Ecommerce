@@ -64,7 +64,15 @@ const userSchema = new mongoose.Schema({
                 ref: "Product"
             }
         }
+    ],
+    //wishlist 
+    wishlist: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Product"
+        }
     ]
+
     //createdAt, UpdatedAt
 }, {
     timestamps: true

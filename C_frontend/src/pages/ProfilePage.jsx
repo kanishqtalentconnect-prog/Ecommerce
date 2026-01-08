@@ -14,7 +14,8 @@ import {
   Calendar,
   Award,
   Camera,
-  House
+  House,
+  Heart
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import axiosInstance from "../lib/axios";
@@ -40,6 +41,10 @@ const ProfilePage = () => {
   const [addressLoading, setAddressLoading] = useState(true);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
+
+  const [wishlist, setWishlist] = useState([]);
+  const [wishlistLoading, setWishlistLoading] = useState(true);
+
 
   const { fetchDefaultAddress } = useAddress();
 
@@ -280,6 +285,17 @@ const ProfilePage = () => {
             >
               <House className="h-4 w-4" />
               My Addresses
+            </button>
+            <button
+              onClick={() => setActiveTab('wishlist')}
+              className={`px-6 py-4 text-sm font-medium flex items-center gap-2 ${
+                activeTab === 'wishlist' 
+                  ? 'text-amber-600 border-b-2 border-amber-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Heart className="h-4 w-4" />
+              Wishlist
             </button>
           </div>
         </div>

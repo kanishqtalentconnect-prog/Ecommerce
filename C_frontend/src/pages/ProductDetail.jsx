@@ -20,6 +20,7 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { currency, formatCurrency, convertPrice } = useCurrency();
+  const [wishlisted, setWishlisted] = useState(false);
 
   let { id } = useParams();
   const [productDetails, setProductDetails] = useState(null);
@@ -110,6 +111,31 @@ const ProductDetail = () => {
     };
   }, [showZoomModal]);
 
+  //wishlist
+  useEffect(() => {
+    const checkWishlist = async () => {
+      try {
+        const res = await axiosInstance.get("/api/wishlist");
+        const exists = res.data.some(p => p._id === productDetails?._id);
+        setWishlisted(exists);
+      } catch {}
+    };
+
+    if (productDetails) checkWishlist();
+  }, [productDetails]);
+
+  const toggleWishlist = async () => {
+    try {
+      const res = await axiosInstance.post("/api/wishlist/toggle", {
+        productId: productDetails._id,
+      });
+      setWishlisted(res.data.added);
+    } catch (err) {
+      alert("Please login to use wishlist");
+    }
+  };
+
+
   // Check if product has discount
   const hasDiscount = productDetails?.hasDiscount && productDetails?.discountAmount > 0;
   const displayPrice = hasDiscount ? productDetails.finalPrice : productDetails?.price;
@@ -168,6 +194,35 @@ const ProductDetail = () => {
   if (!productDetails) {
     return <div className="flex justify-center items-center min-h-screen">Product not found</div>;
   }
+
+  const handleShare = async () => {
+    if (!productDetails) return;
+
+    const shareUrl = window.location.href;
+    const shareText = `${productDetails.name}\n\n${productDetails.description}`;
+
+    // Native Share (Mobile / supported browsers)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: productDetails.name,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (error) {
+        console.log('Share cancelled', error);
+      }
+      return;
+    }
+
+    // Fallback: WhatsApp + copy link
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
+      `${productDetails.name}\n\n${shareText}\n\n${shareUrl}`
+    )}`;
+
+    window.open(whatsappUrl, '_blank');
+  };
+
 
   return (
     <>
@@ -417,10 +472,14 @@ const ProductDetail = () => {
                <span>Add to Cart</span>
             </button>
             <button
-              className="bg-gray-200 p-3 rounded hover:bg-gray-300"
+              onClick={toggleWishlist}
+              className={`p-3 rounded ${
+                wishlisted ? "bg-red-100 text-red-600" : "bg-gray-200 text-gray-600"
+              }`}
             >
-              <Heart className="text-gray-600" />
+              <Heart className={wishlisted ? "fill-red-600" : ""} />
             </button>
+
           </div>
 
           {/* Additional Information Sections */}
@@ -522,6 +581,7 @@ const ProductDetail = () => {
             {/* Share */}
             <div>
               <button
+                onClick={handleShare}
                 className="w-full flex justify-between items-center p-4 hover:bg-gray-100"
               >
                 <div className="flex items-center">

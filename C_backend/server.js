@@ -102,7 +102,8 @@ app.use("/api/checkout", checkoutRoutes);
 app.use("/api/admin/orders",ordersRoutes);
 app.use("/api/header-messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes); // Add review routes
-
+app.use("/api/address", addressRoutes);//Location fetch
+app.use("/api/wishlist", wishlistRoutes);//Wishlist
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
@@ -110,4 +111,4 @@ app.listen(PORT, () => {
     connectDB();
 });
 
-app.use("/api/address", addressRoutes);//Location fetch
+
