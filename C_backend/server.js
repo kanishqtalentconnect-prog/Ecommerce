@@ -26,6 +26,7 @@ import checkoutRoutes from "./routes/checkout.route.js";
 import ordersRoutes from "./routes/orders.route.js";
 import messageRoutes from "./routes/message.route.js";
 import reviewRoutes from "./routes/review.route.js";
+import wishlistRoutes from "./routes/wishlist.route.js";
 import session from "express-session"; 
 
 
