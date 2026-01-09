@@ -36,61 +36,70 @@ export const razorpayWebhook = async (req, res) => {
       const order = await Order.findOne({ razorpayOrderId });
       if (!order) return res.status(200).json({ ok: true });
 
-      // 🔐 DO NOT overwrite if already processed
+      // 🔐 Idempotency
       if (order.paymentId) {
         return res.status(200).json({ ok: true });
       }
 
-      order.status = 'processing';
+      order.status = "processing";
       order.paymentId = razorpayPaymentId;
       order.paymentDate = new Date();
       await order.save();
+
       console.log("📧 About to send emails...");
-      // Populate for email
+
       const populatedOrder = await Order.findById(order._id)
         .populate("user")
-        .populate("products.product");
+        .populate({
+          path: "products.product",
+          populate: { path: "owner" }
+        });
 
+      // GROUP PRODUCTS BY OWNER
       const ownerMap = {};
 
       populatedOrder.products.forEach(item => {
-        const ownerId = item.product.owner._id.toString();
+        const owner = item.product.owner;
+        if (!owner) return;
+
+        const ownerId = owner._id.toString();
 
         if (!ownerMap[ownerId]) {
           ownerMap[ownerId] = {
-            owner: item.product.owner,
+            owner,
             products: []
           };
         }
-
         ownerMap[ownerId].products.push(item);
       });
 
-      // 📧 Send email to EACH product owner
+      // 📧 EMAIL TO EACH PRODUCT OWNER
       for (const ownerId in ownerMap) {
         const { owner, products } = ownerMap[ownerId];
-        console.log("🚀 sendEmail CALLED");
+
+        console.log("🚀 Sending email to owner:", owner.email);
+
         await sendEmail({
           to: owner.email,
-          subject: "New Order for Your Product",
+          subject: "🛒 New Order for Your Product",
           html: adminOrderPlacedTemplate({
             order: populatedOrder,
             products,
             owner
           }),
         });
-        console.log("🚀 sendEmail");
       }
 
-      // 📧 Email to user
-      console.log("🚀 user sendEmail CALLED");
+      // 📧 EMAIL TO USER
+      console.log("🚀 Sending email to user:", populatedOrder.user.email);
+
       await sendEmail({
         to: populatedOrder.user.email,
-        subject: "Order Placed Successfully",
+        subject: "✅ Order Placed Successfully",
         html: userOrderPlacedTemplate(populatedOrder),
       });
-      console.log("🚀 user sendEmail");
     }
+
 
     if (event.event === 'payment.failed') {
       const razorpayOrderId = event.payload.payment.entity.order_id;
