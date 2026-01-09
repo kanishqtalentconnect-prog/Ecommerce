@@ -138,75 +138,77 @@ export const getFeaturedProducts = async (req, res) => {
 
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, category, size, sku } = req.body;
-    
-    // Check for the main image (required)
+    const {
+      name,
+      description,
+      price,
+      category,
+      size,
+      sku,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !price || !category) {
+      return res.status(400).json({ message: "Required fields missing" });
+    }
+
+    // Validate main image
     if (!req.files || !req.files.image) {
       return res.status(400).json({ message: "Main image is required" });
     }
 
-    const image = req.files.image[0];
+    // Upload main image
+    const mainImageResult = await cloudinary.uploader.upload(
+      req.files.image[0].path,
+      { folder: "products" }
+    );
+
+    // Upload additional images (max 4)
     let additionalImagesUrls = [];
-    
-    // Process optional additional images (up to 4)
     if (req.files.additionalImages) {
       if (req.files.additionalImages.length > 4) {
-        return res.status(400).json({ message: "Maximum 4 additional images allowed" });
+        return res.status(400).json({
+          message: "Maximum 4 additional images allowed",
+        });
       }
-      
-      // Upload additional images to cloudinary
-      const additionalImagesPromises = req.files.additionalImages.map(async (image) => {
-        try {
-          const result = await cloudinary.uploader.upload(image.path, {
-            folder: "products",
-          });
-          return result.secure_url;
-        } catch (err) {
-          console.log("Error uploading additional image:", err);
-          // Don't fail the whole request if one additional image fails
-          return null;
-        }
-      });
-      
-      additionalImagesUrls = (await Promise.all(additionalImagesPromises)).filter(url => url !== null);
+
+      const uploads = req.files.additionalImages.map((img) =>
+        cloudinary.uploader.upload(img.path, { folder: "products" })
+      );
+
+      const results = await Promise.all(uploads);
+      additionalImagesUrls = results.map((r) => r.secure_url);
     }
 
-    // Upload main image to cloudinary
-    let mainImageUrl;
-    try {
-      const mainImageResult = await cloudinary.uploader.upload(image.path, {
-        folder: "products",
-      });
-      mainImageUrl = mainImageResult.secure_url;
-    } catch (cloudinaryError) {
-      console.log("Cloudinary Upload Error:", cloudinaryError);
-      return res.status(400).json({
-        message: "Main image upload failed",
-        error: cloudinaryError.message,
-      });
-    }
-
-    // Create the product with all images
+    // Create product ONCE
     const product = await Product.create({
       sku: sku || uuidv4(),
       name,
       description,
       price,
-      image: mainImageUrl,
-      additionalImages: additionalImagesUrls,
       category,
       size,
+      image: mainImageResult.secure_url,
+      additionalImages: additionalImagesUrls,
+      owner: req.user._id, // ✅ FIXED
     });
 
-    // Apply discounts to the newly created product
+    // Apply discount
     const productWithDiscount = await applyDiscountsToProducts(product);
 
-    res.status(201).json(productWithDiscount);
+    res.status(201).json({
+      success: true,
+      product: productWithDiscount,
+    });
   } catch (error) {
-    console.log("Error in createProduct controller", error.message);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error in createProduct:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
+
 
 // NEW: Update Product Function
 export const updateProduct = async (req, res) => {
