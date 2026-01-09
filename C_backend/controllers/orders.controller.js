@@ -110,38 +110,49 @@ export const getOrderById = async (req, res) => {
 // Update order status (Admin)
 export const updateOrderStatus = async (req, res) => {
   try {
-    console.log("Update order status called");
-    console.log("Order ID:", req.params.id);
-    console.log("Request body:", req.body);
-    
     const { status } = req.body;
-    
+
     if (!status) {
-      console.log("Status missing in request");
       return res.status(400).json({ success: false, message: "Status is required" });
     }
-    
-    console.log("Attempting to update order with status:", status);
-    
+
+    // Update order
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true }
     );
-    
+
     if (!order) {
-      console.log("Order not found for ID:", req.params.id);
       return res.status(404).json({ success: false, message: "Order not found" });
     }
-    await sendEmail({
-      to: order.user.email,
-      subject: `📦 Order Status Updated: ${status}`,
-      html: `<p>Your order <b>${order._id}</b> status is now <b>${status}</b></p>`,
-    });
-    console.log("Order updated successfully:", order.status);
-    res.json({ success: true, data: order });
+
+    // Populate user AFTER update
+    const populatedOrder = await Order.findById(order._id).populate(
+      "user",
+      "name email"
+    );
+
+    // Send email safely
+    if (populatedOrder?.user?.email) {
+      await sendEmail({
+        to: populatedOrder.user.email,
+        subject: `📦 Order Status Updated`,
+        html: `
+          <p>Hello <b>${populatedOrder.user.name}</b>,</p>
+          <p>Your order <b>${populatedOrder._id}</b> status is now:</p>
+          <h3>${status.toUpperCase()}</h3>
+        `,
+      });
+    }
+
+    return res.json({ success: true, data: populatedOrder });
   } catch (error) {
     console.error("Error updating order status:", error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 };

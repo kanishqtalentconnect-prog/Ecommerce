@@ -28,6 +28,8 @@ import messageRoutes from "./routes/message.route.js";
 import reviewRoutes from "./routes/review.route.js";
 import wishlistRoutes from "./routes/wishlist.route.js";
 import session from "express-session"; 
+import { sendEmail } from "./utils/sendEmail.js";
+import { razorpayWebhook } from "./controllers/payment.controller.js";
 
 
 dotenv.config();
@@ -60,7 +62,8 @@ app.use(
 );
 app.use(
   '/api/payments/webhook',
-  express.raw({ type: 'application/json' })
+  express.raw({ type: 'application/json' }),
+  razorpayWebhook
 );
 app.use(express.json());
 app.use(cookieParser());
@@ -105,6 +108,15 @@ app.use("/api/header-messages", messageRoutes);
 app.use("/api/reviews", reviewRoutes); // Add review routes
 app.use("/api/address", addressRoutes);//Location fetch
 app.use("/api/wishlist", wishlistRoutes);//Wishlist
+app.get("/test-email", async (req, res) => {
+  await sendEmail({
+    to: "catastrophe637@gmail.com",
+    subject: "SMTP Test",
+    html: "<h1>SMTP working</h1>"
+  });
+  res.send("Email sent");
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

@@ -58,7 +58,12 @@ const orderSchema = new mongoose.Schema({
   },
   paymentDate: {
     type: Date
-  }
+  },
+  emailSent: {
+  type: Boolean,
+  default: false,
+},
+
 }, { timestamps: true });
 
 const Order = mongoose.model("Order", orderSchema);
