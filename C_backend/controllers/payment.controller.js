@@ -191,12 +191,20 @@ export const verifyPayment = async (req, res) => {
 
     // 2. Complete Order (This handles the race condition with the Webhook)
     const updatedOrder = await handleOrderCompletion(order._id, razorpay_payment_id);
+    const populatedOrder = await Order.findById(order._id)
+      .populate("user")
+      .populate({
+        path: "products.product",
+        populate: { path: "owner" }
+      })
+      .populate("shippingDetails.addressId");
 
     return res.status(200).json({
       success: true,
-      message: 'Payment processed successfully',
-      order: updatedOrder
+      message: "Payment processed successfully",
+      order: populatedOrder
     });
+
   } catch (error) {
     console.error('Verify error:', error);
     return res.status(500).json({ message: 'Internal server error' });
