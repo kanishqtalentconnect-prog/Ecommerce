@@ -45,24 +45,51 @@ export const razorpayWebhook = async (req, res) => {
       order.paymentId = razorpayPaymentId;
       order.paymentDate = new Date();
       await order.save();
+      console.log("📧 About to send emails...");
       // Populate for email
       const populatedOrder = await Order.findById(order._id)
         .populate("user")
         .populate("products.product");
 
-      // 📧 Email to admin
-      await sendEmail({
-        to: process.env.ADMIN_EMAIL,
-        subject: "🛒 New Order Placed",
-        html: adminOrderPlacedTemplate(populatedOrder),
+      const ownerMap = {};
+
+      populatedOrder.products.forEach(item => {
+        const ownerId = item.product.owner._id.toString();
+
+        if (!ownerMap[ownerId]) {
+          ownerMap[ownerId] = {
+            owner: item.product.owner,
+            products: []
+          };
+        }
+
+        ownerMap[ownerId].products.push(item);
       });
 
+      // 📧 Send email to EACH product owner
+      for (const ownerId in ownerMap) {
+        const { owner, products } = ownerMap[ownerId];
+        console.log("🚀 sendEmail CALLED");
+        await sendEmail({
+          to: owner.email,
+          subject: "New Order for Your Product",
+          html: adminOrderPlacedTemplate({
+            order: populatedOrder,
+            products,
+            owner
+          }),
+        });
+        console.log("🚀 sendEmail");
+      }
+
       // 📧 Email to user
+      console.log("🚀 user sendEmail CALLED");
       await sendEmail({
         to: populatedOrder.user.email,
-        subject: "✅ Order Placed Successfully",
+        subject: "Order Placed Successfully",
         html: userOrderPlacedTemplate(populatedOrder),
       });
+      console.log("🚀 user sendEmail");
     }
 
     if (event.event === 'payment.failed') {
