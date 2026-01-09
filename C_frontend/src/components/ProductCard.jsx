@@ -6,7 +6,7 @@ import { useCart } from "../context/CartContext";
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
   const { currency, formatCurrency } = useCurrency();
-  const { addToCart } = useCart();
+  const { addToCart, cart } = useCart();
 
   // Check if product has discount information
   const hasDiscount = product.hasDiscount && product.discountAmount > 0;
@@ -22,8 +22,14 @@ const ProductCard = ({ product }) => {
     navigate(`/product/${product._id}`);
   };
 
+  const isInCart = cart.some(
+    (item) => item.product?._id === product._id
+  );
+
+
   const handleAddToCart = (e) => {
     e.stopPropagation();
+    if (isInCart) return;
     // Use the discounted price when adding to cart
     const productForCart = {
       ...product,
@@ -31,6 +37,7 @@ const ProductCard = ({ product }) => {
       originalPrice: hasDiscount ? originalPrice : undefined
     };
     addToCart(productForCart, 1);
+    alert("Added to cart successfully!");
   };
 
   return (
@@ -84,9 +91,15 @@ const ProductCard = ({ product }) => {
 
       <button
         onClick={handleAddToCart}
-        className="w-full border border-black text-black px-4 py-2 mt-3 rounded-none hover:border-2 transition-all duration-300"
+        disabled={isInCart}
+        className={`w-full px-4 py-2 mt-3 rounded-none transition-all duration-300
+          ${
+            isInCart
+              ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+              : "border border-black text-black hover:border-2"
+          }`}
       >
-        Add to cart
+        {isInCart ? "Added to Cart" : "Add to cart"}
       </button>
     </div>
   );

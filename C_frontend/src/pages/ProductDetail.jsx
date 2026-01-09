@@ -20,7 +20,7 @@ const ProductDetail = () => {
   const lensSize = 150; // Made lens slightly bigger for better visibility
   const zoomLevel = 3; // Zoom magnification level - increased for better zoom
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { addToCart, cart } = useCart();
   const { currency, formatCurrency, convertPrice } = useCurrency();
   const [wishlisted, setWishlisted] = useState(false);
 
@@ -150,9 +150,14 @@ const ProductDetail = () => {
   // Convert savings to selected currency
   const convertedSavings = convertPrice(savings);
 
+  const isInCart = cart.some(
+    (item) => item.product?._id === productDetails._id
+  );
+
+
   const handleAddToCart = () => {
     if (!productDetails) return;
-    
+    if (isInCart) return;
     // Add product with discounted price
     const productForCart = {
       ...productDetails,
@@ -466,12 +471,18 @@ const ProductDetail = () => {
               <span>Buy it now</span>
             </button>
             <button
-              className="flex-1 bg-green-600 text-white py-3 rounded 
-              flex items-center justify-center space-x-2 hover:bg-green-700"
+              className={`flex-1 bg-green-600 text-white py-3 rounded 
+              flex items-center justify-center space-x-2 hover:bg-green-700
+              ${
+                isInCart
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  : "border border-black text-black hover:border-2"
+              }`}
               onClick={handleAddToCart}
+              disabled={isInCart}
             >
              <ShoppingCart />
-               <span>Add to Cart</span>
+               <span>{isInCart ? "Added to Cart" : "Add to cart"}</span>
             </button>
             <button
               onClick={toggleWishlist}
