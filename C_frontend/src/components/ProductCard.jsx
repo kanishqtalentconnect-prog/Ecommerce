@@ -24,8 +24,8 @@ const ProductCard = ({ product }) => {
 
   const isInCart = cart.some(
     (item) =>
-      item.product?._id === productDetails?._id ||
-      item._id === productDetails?._id
+      item.product?._id === product?._id ||
+      item._id === product?._id
   );
 
 
