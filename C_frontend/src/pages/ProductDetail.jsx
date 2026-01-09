@@ -151,7 +151,9 @@ const ProductDetail = () => {
   const convertedSavings = convertPrice(savings);
 
   const isInCart = cart.some(
-    (item) => item.product?._id === productDetails._id
+    (item) =>
+      item.product?._id === productDetails?._id ||
+      item._id === productDetails?._id
   );
 
 

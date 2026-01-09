@@ -23,8 +23,11 @@ const ProductCard = ({ product }) => {
   };
 
   const isInCart = cart.some(
-    (item) => item.product?._id === product._id
+    (item) =>
+      item.product?._id === productDetails?._id ||
+      item._id === productDetails?._id
   );
+
 
 
   const handleAddToCart = (e) => {
