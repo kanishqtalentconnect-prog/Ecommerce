@@ -1,4 +1,5 @@
 import Order from "../models/order.model.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 // Get all orders (Admin)
 export const getAllOrders = async (req, res) => {
@@ -132,7 +133,11 @@ export const updateOrderStatus = async (req, res) => {
       console.log("Order not found for ID:", req.params.id);
       return res.status(404).json({ success: false, message: "Order not found" });
     }
-    
+    await sendEmail({
+      to: order.user.email,
+      subject: `📦 Order Status Updated: ${status}`,
+      html: `<p>Your order <b>${order._id}</b> status is now <b>${status}</b></p>`,
+    });
     console.log("Order updated successfully:", order.status);
     res.json({ success: true, data: order });
   } catch (error) {

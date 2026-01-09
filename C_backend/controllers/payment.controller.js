@@ -2,6 +2,11 @@ import razorpay from "../lib/razorpay.js";
 import Order from '../models/order.model.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { sendEmail } from "../utils/sendEmail.js";
+import {
+  adminOrderPlacedTemplate,
+  userOrderPlacedTemplate,
+} from "../utils/emailTemplates.js";
 
 dotenv.config();
 
@@ -40,6 +45,24 @@ export const razorpayWebhook = async (req, res) => {
       order.paymentId = razorpayPaymentId;
       order.paymentDate = new Date();
       await order.save();
+      // Populate for email
+      const populatedOrder = await Order.findById(order._id)
+        .populate("user")
+        .populate("products.product");
+
+      // 📧 Email to admin
+      await sendEmail({
+        to: process.env.ADMIN_EMAIL,
+        subject: "🛒 New Order Placed",
+        html: adminOrderPlacedTemplate(populatedOrder),
+      });
+
+      // 📧 Email to user
+      await sendEmail({
+        to: populatedOrder.user.email,
+        subject: "✅ Order Placed Successfully",
+        html: userOrderPlacedTemplate(populatedOrder),
+      });
     }
 
     if (event.event === 'payment.failed') {
@@ -177,7 +200,7 @@ export const verifyPayment = async (req, res) => {
     order.paymentId = razorpay_payment_id;
     order.paymentDate = new Date();
     await order.save();
-    
+
     return res.status(200).json({
       success: true,
       message: 'Payment verified successfully',
